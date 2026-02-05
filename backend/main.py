@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .database import SessionLocal, init_db, get_db
+from database import SessionLocal, init_db, get_db
 from .models import UserPermissionModel
 from pydantic import BaseModel
 from typing import List
