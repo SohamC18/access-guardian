@@ -49,3 +49,22 @@ def update_role(data: RoleChange, db: Session = Depends(get_db)):
 def get_audit_data(db: Session = Depends(get_db)):
     # This endpoint provides the raw data for Person 2's AI Engine [cite: 177]
     return db.query(UserPermissionModel).all()
+
+# Create a way to actually FIX the problem
+class RemediationRequest(BaseModel):
+    username: str
+    permission_to_remove: str
+
+@app.post("/remediate")
+def remediate_access(data: RemediationRequest, db: Session = Depends(get_db)):
+    user = db.query(UserPermissionModel).filter(UserPermissionModel.username == data.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Remove the specific 'creepy' permission
+    if data.permission_to_remove in user.accumulated_permissions:
+        user.accumulated_permissions.remove(data.permission_to_remove)
+        db.commit()
+        return {"message": f"Successfully revoked {data.permission_to_remove} from {data.username}"}
+    
+    return {"message": "Permission not found in user's list"}
