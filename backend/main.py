@@ -1,0 +1,51 @@
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .database import SessionLocal, init_db, get_db
+from .models import UserPermissionModel
+from pydantic import BaseModel
+from typing import List
+
+# Initialize the database tables on start
+init_db()
+
+app = FastAPI()
+
+class RoleChange(BaseModel):
+    username: str
+    new_role: str
+    new_permissions: List[str]
+
+@app.post("/update-role")
+def update_role(data: RoleChange, db: Session = Depends(get_db)):
+    # 1. Look for existing user in Postgres
+    user = db.query(UserPermissionModel).filter(UserPermissionModel.username == data.username).first()
+    
+    if not user:
+        # Create user if they don't exist for demo purposes
+        user = UserPermissionModel(
+            username=data.username, 
+            current_role="New Hire", 
+            accumulated_permissions=[]
+        )
+        db.add(user)
+
+    # 2. THE CREEP LOGIC: Add new perms, but don't remove old ones [cite: 46]
+    existing_perms = user.accumulated_permissions or []
+    updated_perms = list(set(existing_perms + data.new_permissions))
+    
+    # 3. Save back to PostgreSQL 
+    user.current_role = data.new_role
+    user.accumulated_permissions = updated_perms
+    db.commit()
+    
+    return {
+        "status": "Success",
+        "user": user.username,
+        "new_role": user.current_role,
+        "total_permissions": updated_perms
+    }
+
+@app.get("/audit-data")
+def get_audit_data(db: Session = Depends(get_db)):
+    # This endpoint provides the raw data for Person 2's AI Engine [cite: 177]
+    return db.query(UserPermissionModel).all()
