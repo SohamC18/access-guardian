@@ -1,0 +1,11 @@
+user_id,view_files,edit_files,delete_db,admin_panel,access_payroll,server_root
+User_1,1,1,0,0,0,0
+User_2,1,1,0,0,0,0
+User_3,1,1,0,0,0,0
+User_4,1,1,0,0,0,0
+User_5,1,0,0,0,0,0
+User_6,1,0,0,0,0,0
+User_7,1,1,0,0,0,0
+User_8,1,1,0,0,0,0
+User_9,1,0,0,0,0,0
+User_10,1,1,1,1,1,1
