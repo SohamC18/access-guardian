@@ -1,12 +1,12 @@
-from sqlalchemy import create_all_engines, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base
+from models import Base
 
 # Replace with your actual PostgreSQL credentials
 # Format: postgresql://user:password@localhost:port/db_name
-DATABASE_URL = "postgresql://postgres:password@localhost:5432/obsidian_db"
+DATABASE_URL = "sqlite:///./obsidian.db"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
