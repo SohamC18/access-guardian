@@ -1,37 +1,51 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .database import SessionLocal, init_db, get_db
+from .models import UserPermissionModel
 from pydantic import BaseModel
 from typing import List
 
-app = FastAPI()
+# Initialize the database tables on start
+init_db()
 
-# This is our fake "Memory" (Database)
-# In a real app, we'd use PostgreSQL [cite: 188]
-user_database = {
-    "atharv": {"role": "intern", "permissions": ["read_docs"]}
-}
+app = FastAPI()
 
 class RoleChange(BaseModel):
     username: str
     new_role: str
     new_permissions: List[str]
 
-@app.get("/")
-def home():
-    return {"message": "Obsidian Access Guardian API is running!"}
-
 @app.post("/update-role")
-def update_role(data: RoleChange):
-    user = user_database.get(data.username)
-    if user:
-        # THE CREEP LOGIC: We add new permissions but FORGET to remove old ones 
-        updated_perms = list(set(user["permissions"] + data.new_permissions))
-        user_database[data.username] = {
-            "role": data.new_role,
-            "permissions": updated_perms
-        }
-        return {
-            "status": "Success", 
-            "current_permissions": updated_perms,
-            "note": "Privilege creep simulated!"
-        }
-    return {"error": "User not found"}
+def update_role(data: RoleChange, db: Session = Depends(get_db)):
+    # 1. Look for existing user in Postgres
+    user = db.query(UserPermissionModel).filter(UserPermissionModel.username == data.username).first()
+    
+    if not user:
+        # Create user if they don't exist for demo purposes
+        user = UserPermissionModel(
+            username=data.username, 
+            current_role="New Hire", 
+            accumulated_permissions=[]
+        )
+        db.add(user)
+
+    # 2. THE CREEP LOGIC: Add new perms, but don't remove old ones [cite: 46]
+    existing_perms = user.accumulated_permissions or []
+    updated_perms = list(set(existing_perms + data.new_permissions))
+    
+    # 3. Save back to PostgreSQL 
+    user.current_role = data.new_role
+    user.accumulated_permissions = updated_perms
+    db.commit()
+    
+    return {
+        "status": "Success",
+        "user": user.username,
+        "new_role": user.current_role,
+        "total_permissions": updated_perms
+    }
+
+@app.get("/audit-data")
+def get_audit_data(db: Session = Depends(get_db)):
+    # This endpoint provides the raw data for Person 2's AI Engine [cite: 177]
+    return db.query(UserPermissionModel).all()
