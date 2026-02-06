@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
+import { AlertCircle, ChevronRight, RefreshCw, Filter, Download, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import RemediationModal from './RemediationModal';
@@ -10,15 +10,41 @@ const UserTable = ({ demoMode = false }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState(null);
   
-  const fetchUsers = async () => {
+  // Add state for filter
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterCriteria, setFilterCriteria] = useState({
+    minRisk: '',
+    maxRisk: '',
+    status: '',
+    role: ''
+  });
+  const [activeFilters, setActiveFilters] = useState({});
+  
+  const fetchUsers = async (criteria = null) => {
     setLoading(true);
     setError(null);
     try {
       let data;
       if (demoMode) {
         data = await api.getMockUsers();
+        // Apply local filtering for demo mode
+        if (criteria) {
+          data = data.filter(user => {
+            if (criteria.minRisk && user.riskScore < parseInt(criteria.minRisk)) return false;
+            if (criteria.maxRisk && user.riskScore > parseInt(criteria.maxRisk)) return false;
+            if (criteria.status && user.status !== criteria.status) return false;
+            if (criteria.role && user.role !== criteria.role) return false;
+            return true;
+          });
+        }
       } else {
-        data = await api.getUsers();
+        if (criteria) {
+          // Call filter endpoint
+          data = await api.filterUsers(criteria);
+        } else {
+          // Get all users
+          data = await api.getUsers();
+        }
       }
       setUsers(data);
     } catch (error) {
@@ -35,6 +61,73 @@ const UserTable = ({ demoMode = false }) => {
   useEffect(() => {
     fetchUsers();
   }, [demoMode]);
+
+  const handleFilter = async () => {
+    // Prepare criteria
+    const criteria = {};
+    if (filterCriteria.minRisk) criteria.minRisk = parseInt(filterCriteria.minRisk);
+    if (filterCriteria.maxRisk) criteria.maxRisk = parseInt(filterCriteria.maxRisk);
+    if (filterCriteria.status) criteria.status = filterCriteria.status;
+    if (filterCriteria.role) criteria.role = filterCriteria.role;
+    
+    // Update active filters for display
+    const filters = {};
+    if (filterCriteria.minRisk) filters.minRisk = filterCriteria.minRisk;
+    if (filterCriteria.maxRisk) filters.maxRisk = filterCriteria.maxRisk;
+    if (filterCriteria.status) filters.status = filterCriteria.status;
+    if (filterCriteria.role) filters.role = filterCriteria.role;
+    setActiveFilters(filters);
+    
+    // Apply filter
+    fetchUsers(criteria);
+    setShowFilter(false);
+  };
+
+  const clearFilter = () => {
+    setFilterCriteria({
+      minRisk: '',
+      maxRisk: '',
+      status: '',
+      role: ''
+    });
+    setActiveFilters({});
+    fetchUsers(); // Reset to all users
+  };
+
+  const handleExport = async () => {
+    try {
+      if (demoMode) {
+        // Create demo CSV
+        const csvContent = "data:text/csv;charset=utf-8," 
+          + "ID,Name,Role,Department,Risk Score,Permissions,Excess Permissions,Status,Last Change\n"
+          + users.map(u => 
+              `${u.id},${u.name},${u.role},${u.department},${u.riskScore},${u.permissions},${u.excessPermissions},${u.status},${u.lastChange}`
+            ).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `users_export_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const blob = await api.exportUsersCSV();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+      alert('✅ Users exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('❌ Export failed: ' + error.message);
+    }
+  };
 
   const getRiskColor = (score, status) => {
     if (status === 'critical') return 'bg-red-500 text-white';
@@ -61,7 +154,7 @@ const UserTable = ({ demoMode = false }) => {
     try {
       if (!demoMode) {
         await api.submitRemediation({
-          userId: selectedUser.name, // Username from backend
+          userId: selectedUser.name,
           permission: actionData.permission_to_remove
         });
         alert('✅ Remediation action submitted successfully!');
@@ -73,15 +166,6 @@ const UserTable = ({ demoMode = false }) => {
       fetchUsers();
     } catch (error) {
       alert(`❌ Error: ${error.message}`);
-    }
-  };
-
-  const handleExport = () => {
-    if (demoMode) {
-      alert('📊 Demo: Would export CSV with user risk data');
-    } else {
-      alert('📊 Exporting real user data to CSV...');
-      // In real app, implement CSV export
     }
   };
 
@@ -119,7 +203,7 @@ const UserTable = ({ demoMode = false }) => {
             <p className="text-red-700">{error}</p>
           </div>
           <button 
-            onClick={fetchUsers}
+            onClick={() => fetchUsers()}
             className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
           >
             Retry Loading
@@ -142,7 +226,7 @@ const UserTable = ({ demoMode = false }) => {
               {demoMode ? 'Demo mode: No sample users loaded' : 'No users in the database'}
             </p>
             <button 
-              onClick={fetchUsers}
+              onClick={() => fetchUsers()}
               className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
             >
               Refresh
@@ -158,10 +242,109 @@ const UserTable = ({ demoMode = false }) => {
       <div className="mb-4 flex justify-between items-center">
         <div className="text-sm text-gray-600">
           Showing {users.length} {demoMode ? 'demo' : 'live'} user{users.length !== 1 ? 's' : ''}
+          {Object.keys(activeFilters).length > 0 && (
+            <span className="ml-2 text-blue-600">(filtered)</span>
+          )}
         </div>
         <div className="flex space-x-2">
+          <div className="relative">
+            <button 
+              onClick={() => setShowFilter(!showFilter)}
+              className="flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm"
+            >
+              <Filter className="h-4 w-4 mr-1" />
+              Filter
+            </button>
+            
+            {/* Filter Dropdown */}
+            {showFilter && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border p-4 z-10">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">Filter Users</h4>
+                  <button 
+                    onClick={() => setShowFilter(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Min Risk Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={filterCriteria.minRisk}
+                      onChange={(e) => setFilterCriteria({...filterCriteria, minRisk: e.target.value})}
+                      className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Max Risk Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={filterCriteria.maxRisk}
+                      onChange={(e) => setFilterCriteria({...filterCriteria, maxRisk: e.target.value})}
+                      className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Status</label>
+                    <select
+                      value={filterCriteria.status}
+                      onChange={(e) => setFilterCriteria({...filterCriteria, status: e.target.value})}
+                      className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Status</option>
+                      <option value="critical">Critical</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Role</label>
+                    <select
+                      value={filterCriteria.role}
+                      onChange={(e) => setFilterCriteria({...filterCriteria, role: e.target.value})}
+                      className="w-full border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Roles</option>
+                      <option value="HR">HR</option>
+                      <option value="Developer">Developer</option>
+                      <option value="Finance">Finance</option>
+                      <option value="DevOps">DevOps</option>
+                    </select>
+                  </div>
+                  <div className="flex space-x-2 pt-2">
+                    <button
+                      onClick={handleFilter}
+                      className="flex-1 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                    >
+                      Apply Filter
+                    </button>
+                    <button
+                      onClick={clearFilter}
+                      className="flex-1 py-2 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button 
-            onClick={fetchUsers}
+            onClick={() => {
+              clearFilter();
+              fetchUsers();
+            }}
             className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
@@ -169,12 +352,52 @@ const UserTable = ({ demoMode = false }) => {
           </button>
           <button 
             onClick={handleExport}
-            className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm"
+            className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
+            <Download className="h-4 w-4 mr-1" />
             Export CSV
           </button>
         </div>
       </div>
+
+      {/* Active Filters Display */}
+      {Object.keys(activeFilters).length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <span className="text-sm font-medium text-blue-800 mr-2">Active Filters:</span>
+              <div className="flex flex-wrap gap-2">
+                {activeFilters.minRisk && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    Min Risk: {activeFilters.minRisk}
+                  </span>
+                )}
+                {activeFilters.maxRisk && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    Max Risk: {activeFilters.maxRisk}
+                  </span>
+                )}
+                {activeFilters.status && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    Status: {activeFilters.status}
+                  </span>
+                )}
+                {activeFilters.role && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    Role: {activeFilters.role}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button 
+              onClick={clearFilter}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
@@ -268,6 +491,21 @@ const UserTable = ({ demoMode = false }) => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-4 text-center text-sm text-gray-500">
+        {Object.keys(activeFilters).length > 0 ? (
+          <p>
+            Showing {users.length} filtered users. <button 
+              onClick={clearFilter}
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Clear filters to see all users.
+            </button>
+          </p>
+        ) : (
+          <p>{users.length} users total. Use the filter button to narrow down results.</p>
+        )}
       </div>
 
       <RemediationModal 
