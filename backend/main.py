@@ -621,6 +621,91 @@ def simulate_role_change(db: Session = Depends(get_db)):
         "demonstrates": "Privilege Creep: User kept old permissions while gaining new ones"
     }
 
+
+@app.post("/api/calculate-risks-now")
+def calculate_risks_now(db: Session = Depends(get_db)):
+    """Force risk calculation and return results"""
+    risk_data = calculate_risk_scores(db, update_db=True)
+    
+    # Count anomalies
+    anomalies = []
+    for user_id, data in risk_data.items():
+        if data.get("status") == "⚠️ DANGER":
+            user = db.query(UserPermissionModel).filter(UserPermissionModel.id == user_id).first()
+            anomalies.append({
+                "user": user.username,
+                "risk_score": data.get("risk_score"),
+                "reason": data.get("reason")
+            })
+    
+    return {
+        "message": f"Calculated risks for {len(risk_data)} users",
+        "anomalies_found": len(anomalies),
+        "anomalies": anomalies
+    }
+
+# =============== ADD TO main.py ===============
+@app.post("/api/force-anomalies-demo")
+def force_anomalies_demo(db: Session = Depends(get_db)):
+    """Force create anomalies for demo purposes"""
+    # Get all users
+    users = db.query(UserPermissionModel).all()
+    
+    # Create realistic anomalies based on permission patterns
+    anomalies = []
+    
+    # Map users to anomalies
+    for user in users:
+        # Calculate permission count
+        perm_count = len(user.accumulated_permissions) if user.accumulated_permissions else 0
+        
+        # Define expected permissions per role
+        role_permissions = {
+            "HR": ["view_salaries", "edit_profiles", "onboard_users"],
+            "Developer": ["access_github", "deploy_code", "read_logs"],
+            "Finance": ["process_payments", "view_tax_data", "approve_expenses"],
+            "DevOps": ["db_admin", "server_root", "manage_cloud"]
+        }
+        
+        expected_perms = role_permissions.get(user.current_role, [])
+        excess_perms = 0
+        if user.accumulated_permissions:
+            excess_perms = len([p for p in user.accumulated_permissions if p not in expected_perms])
+        
+        # Create anomalies for users with excess permissions
+        if excess_perms >= 2:  # At least 2 excess permissions
+            severity = "Critical" if excess_perms >= 4 else "High" if excess_perms >= 3 else "Medium"
+            
+            systems = {
+                "view_salaries": "HR System",
+                "db_admin": "Database", 
+                "process_payments": "Finance Portal",
+                "deploy_code": "CI/CD System",
+                "server_root": "Server Infrastructure",
+                "manage_cloud": "Cloud Platform"
+            }
+            
+            detected_system = "Multiple Systems"
+            if user.accumulated_permissions:
+                for perm in user.accumulated_permissions:
+                    if perm in systems:
+                        detected_system = systems[perm]
+                        break
+            
+            anomalies.append({
+                "id": len(anomalies) + 1,
+                "user": user.username,
+                "description": f"Privilege creep detected: {excess_perms} excess permissions for {user.current_role} role",
+                "severity": severity,
+                "time": "Just now",
+                "system": detected_system
+            })
+    
+    return {
+        "message": f"Created {len(anomalies)} anomalies for demo",
+        "anomalies": anomalies,
+        "users_analyzed": len(users)
+    }
 # =============== HELPER FUNCTIONS ===============
 def calculate_risk_scores(db: Session, update_db=False):
     """Calculate risk scores using Isolation Forest"""

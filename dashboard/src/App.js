@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, ShieldAlert, Activity, FileText, Bell, Shield, RefreshCw } from 'lucide-react';
+import { Users, ShieldAlert, Activity, FileText, Bell, Shield, RefreshCw, X, AlertCircle } from 'lucide-react';
 import UserTable from './components/UserTable';
 import AnomaliesList from './components/AnomaliesList';
 import PermissionChart from './components/Charts';
@@ -18,6 +18,12 @@ function App() {
     compliance_score: 92
   });
   const [anomalies, setAnomalies] = useState([]);
+  
+  // New state variables for QuickActions
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [allAlerts, setAllAlerts] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState(null);
+  const [systemHealthResult, setSystemHealthResult] = useState(null);
   
   useEffect(() => {
     checkBackendConnection();
@@ -72,15 +78,28 @@ function App() {
     }
   };
   
-  const handleRunHealthCheck = async () => {
+  const handleRunSystemHealthCheck = async () => {
     try {
       if (!demoMode) {
-        await api.calculateRisks();
+        const result = await api.runSystemHealthCheck();
+        setSystemHealthResult(result);
+        
+        // Show health check results
+        alert(`🏥 System Health Check Results:
+Status: ${result.status}
+Users: ${result.metrics.total_users}
+High Risk: ${result.metrics.high_risk_users}
+Anomalies: ${result.metrics.anomalies_detected}
+AI Accuracy: ${result.metrics.ai_model_accuracy}
+${result.issues.length > 0 ? `\nIssues: ${result.issues.join(', ')}` : ''}
+${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendations.join(', ')}` : ''}`);
+        
         // Refresh data
         fetchRealData();
-        alert('✅ AI risk analysis completed! Data refreshed.');
       } else {
-        alert('🔧 In demo mode - would trigger AI analysis in production');
+        const mockResult = await api.runSystemHealthCheckMock();
+        setSystemHealthResult(mockResult);
+        alert('🔧 Demo: System health check would analyze:\n- Database connectivity\n- AI model performance\n- Risk score accuracy\n- Response times');
       }
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -91,6 +110,187 @@ function App() {
     if (!demoMode) {
       fetchRealData();
     }
+  };
+
+  // Handle QuickActions callbacks
+  const handleQuickActionComplete = (action, data) => {
+    console.log('Quick action:', action, data);
+    
+    switch (action) {
+      case 'filter':
+        // Show filtered high-risk users
+        setFilteredUsers(data.users);
+        alert(`✅ Showing ${data.users?.length || 0} high-risk users (risk ≥ 60)`);
+        break;
+      
+      case 'showAlerts':
+        // Show all alerts in modal
+        setAllAlerts(data.anomalies || []);
+        setShowAlertsModal(true);
+        break;
+      
+      case 'refresh':
+        // Refresh all data
+        if (!demoMode) {
+          fetchRealData();
+        }
+        break;
+      
+      default:
+        console.log('Quick action completed:', action, data);
+    }
+  };
+
+  // Clear filtered users
+  const clearFilteredUsers = () => {
+    setFilteredUsers(null);
+  };
+
+  // Role Change Demo Component
+  const RoleChangeDemo = () => {
+    const [selectedUser, setSelectedUser] = useState('');
+    const [newRole, setNewRole] = useState('Developer');
+    const [changing, setChanging] = useState(false);
+    
+    const users = [
+      { name: 'alex.johnson', role: 'Developer' },
+      { name: 'sarah.chen', role: 'HR' },
+      { name: 'mike.rodriguez', role: 'Finance' },
+      { name: 'emma.davis', role: 'DevOps' },
+      { name: 'james.wilson', role: 'Developer' },
+      { name: 'priya.patel', role: 'Finance' },
+      { name: 'david.kim', role: 'HR' },
+      { name: 'lisa.wang', role: 'DevOps' },
+      { name: 'bot', role: 'HR' }
+    ];
+    
+    const handleRoleChange = async () => {
+      if (!selectedUser) {
+        alert('Please select a user');
+        return;
+      }
+      
+      setChanging(true);
+      try {
+        const response = await fetch('http://localhost:8000/update-role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: selectedUser,
+            new_role: newRole,
+            new_permissions: getPermissionsForRole(newRole)
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        alert(`✅ Role changed successfully!\n\n` +
+              `User: ${result.user}\n` +
+              `New Role: ${result.new_role}\n` +
+              `Total Permissions: ${result.total_permissions}\n\n` +
+              `🚨 Privilege Creep: User kept old permissions while gaining new ones!\n\n` +
+              `Now run AI analysis to see risk score increase.`);
+        
+        // Refresh the page after 2 seconds
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Role change error:', error);
+        alert(`Error: ${error.message}\n\nMake sure backend is running at http://localhost:8000`);
+      } finally {
+        setChanging(false);
+      }
+    };
+    
+    const getPermissionsForRole = (role) => {
+      const permissions = {
+        'HR': ['view_salaries', 'edit_profiles', 'onboard_users'],
+        'Developer': ['access_github', 'deploy_code', 'read_logs'],
+        'Finance': ['process_payments', 'view_tax_data', 'approve_expenses'],
+        'DevOps': ['db_admin', 'server_root', 'manage_cloud']
+      };
+      return permissions[role] || [];
+    };
+    
+    return (
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+        <h3 className="text-lg font-bold mb-4 flex items-center">
+          <span className="mr-2">🔄</span> Live Role Change Demo
+        </h3>
+        
+        <p className="text-gray-700 mb-4">
+          Simulate privilege creep in real-time. Change a user's role without removing old permissions.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select User
+            </label>
+            <select 
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="">-- Choose User --</option>
+              {users.map(user => (
+                <option key={user.name} value={user.name}>
+                  {user.name} ({user.role})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Role
+            </label>
+            <select 
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              <option value="HR">HR</option>
+              <option value="Developer">Developer</option>
+              <option value="Finance">Finance</option>
+              <option value="DevOps">DevOps</option>
+            </select>
+          </div>
+          
+          <div className="flex items-end">
+            <button 
+              onClick={handleRoleChange}
+              disabled={changing || !selectedUser || demoMode}
+              className={`w-full py-2 px-4 rounded-lg font-medium ${
+                changing || demoMode || !selectedUser
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+              }`}
+            >
+              {changing ? 'Changing Role...' : 'Simulate Role Change'}
+            </button>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg p-4 border border-purple-100">
+          <h4 className="font-medium text-purple-800 mb-2">🎯 Demo Instructions:</h4>
+          <ol className="text-sm text-gray-700 space-y-2 list-decimal pl-4">
+            <li>Switch to <strong>Live Mode</strong> (toggle in top-right)</li>
+            <li>Select <strong>"James Wilson"</strong> (already has 12 permissions)</li>
+            <li>Change role to <strong>"HR"</strong></li>
+            <li>Click <strong>"Simulate Role Change"</strong></li>
+            <li>Watch permission count increase (12 → 15)</li>
+            <li>Run <strong>"AI Risk Analysis"</strong> to see risk score increase</li>
+          </ol>
+        </div>
+      </div>
+    );
   };
 
   // Add connection status to navbar
@@ -133,7 +333,7 @@ function App() {
                   className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
                   disabled={demoMode}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${!demoMode ? 'animate-spin' : ''}`} />
+                  <RefreshCw className="h-4 w-4 mr-1" />
                   Refresh
                 </button>
                 
@@ -237,16 +437,21 @@ function App() {
             <div className="bg-white rounded-xl shadow p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">User Risk Assessment</h2>
-                <div className="flex space-x-2">
-                  <button className="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
-                    Filter
-                  </button>
-                  <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    Export
-                  </button>
-                </div>
+                {filteredUsers && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-blue-600">
+                      Showing {filteredUsers.length} filtered users
+                    </span>
+                    <button 
+                      onClick={clearFilteredUsers}
+                      className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                      Clear Filter
+                    </button>
+                  </div>
+                )}
               </div>
-              <UserTable demoMode={demoMode} />
+              <UserTable demoMode={demoMode} filteredUsers={filteredUsers} />
             </div>
             
             {/* Permission Trend Chart */}
@@ -276,7 +481,32 @@ function App() {
                 </span>
               </div>
               <AnomaliesList anomalies={anomalies} demoMode={demoMode} />
-              <button className="w-full mt-4 py-2 text-center text-blue-600 hover:text-blue-800 font-medium border border-dashed border-blue-200 rounded-lg">
+              <button 
+                onClick={() => {
+                  if (demoMode) {
+                    alert('🔍 Demo: Would show paginated anomalies view');
+                  } else {
+                    // For live mode, try to generate anomalies if none exist
+                    if (anomalies.length === 0) {
+                      fetch('http://localhost:8000/api/force-anomalies-demo', {
+                        method: 'POST'
+                      })
+                      .then(res => res.json())
+                      .then(data => {
+                        alert(`Generated ${data.anomalies?.length || 0} anomalies!`);
+                        window.location.reload();
+                      })
+                      .catch(err => {
+                        console.error('Error generating anomalies:', err);
+                        alert('Could not generate anomalies. Try running AI analysis first.');
+                      });
+                    } else {
+                      handleQuickActionComplete('showAlerts', { anomalies: anomalies });
+                    }
+                  }
+                }}
+                className="w-full mt-4 py-2 text-center text-blue-600 hover:text-blue-800 font-medium border border-dashed border-blue-200 rounded-lg"
+              >
                 View All Anomalies →
               </button>
             </div>
@@ -284,8 +514,14 @@ function App() {
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-bold mb-6">Quick Actions</h2>
-              <QuickActions />
+              <QuickActions 
+                demoMode={demoMode}
+                onActionComplete={handleQuickActionComplete}
+              />
             </div>
+            
+            {/* Role Change Demo */}
+            <RoleChangeDemo />
             
             {/* Compliance Status */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
@@ -309,17 +545,124 @@ function App() {
                     {demoMode ? 'Mock Data' : 'Live Database'}
                   </span>
                 </div>
+                {systemHealthResult && (
+                  <div className="mt-4 p-3 bg-white rounded-lg border">
+                    <div className="flex items-center mb-2">
+                      <div className={`h-2 w-2 rounded-full mr-2 ${
+                        systemHealthResult.status === 'HEALTHY' ? 'bg-green-500' :
+                        systemHealthResult.status === 'WARNING' ? 'bg-yellow-500' :
+                        systemHealthResult.status === 'CRITICAL' ? 'bg-red-500' : 'bg-gray-500'
+                      }`}></div>
+                      <span className="font-medium">Last Health Check: {systemHealthResult.status}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <button 
-                onClick={handleRunHealthCheck}
+                onClick={handleRunSystemHealthCheck}
                 className="w-full mt-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center"
               >
                 <Activity className="h-5 w-5 mr-2" />
-                Run AI Risk Analysis
+                Run System Health Check
               </button>
             </div>
           </div>
         </div>
+        
+        {/* Alerts Modal */}
+        {showAlertsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+              <div className="flex justify-between items-center p-6 border-b">
+                <div>
+                  <h3 className="text-xl font-bold">All System Alerts</h3>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Showing {allAlerts.length} active alerts
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowAlertsModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[60vh]">
+                {allAlerts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-medium text-gray-700 mb-2">No Alerts</h4>
+                    <p className="text-gray-500">No active alerts in the system.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allAlerts.map((alert) => (
+                      <div 
+                        key={alert.id} 
+                        className={`p-4 rounded-lg border ${
+                          alert.severity === 'Critical' 
+                            ? 'bg-red-50 border-red-200' 
+                            : alert.severity === 'High'
+                            ? 'bg-amber-50 border-amber-200'
+                            : 'bg-blue-50 border-blue-200'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center mb-2">
+                              <span className={`px-2 py-1 rounded text-xs font-medium mr-3 ${
+                                alert.severity === 'Critical'
+                                  ? 'bg-red-100 text-red-800'
+                                  : alert.severity === 'High'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {alert.severity}
+                              </span>
+                              <span className="text-sm text-gray-500">{alert.time}</span>
+                            </div>
+                            <h4 className="font-medium mb-1">{alert.user}</h4>
+                            <p className="text-gray-700 mb-2">{alert.description}</p>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <span className="px-2 py-0.5 bg-gray-100 rounded mr-3">
+                                {alert.system}
+                              </span>
+                              <span>Alert ID: #{alert.id}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="border-t p-4 flex justify-between items-center">
+                <span className="text-sm text-gray-500">
+                  Total alerts: {allAlerts.length}
+                </span>
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={() => setShowAlertsModal(false)}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={() => {
+                      // Export alerts functionality
+                      alert('Would export alerts to CSV');
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Export Alerts
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Demo Mode Banner */}
         {demoMode && (
