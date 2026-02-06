@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from database import SessionLocal, init_db, get_db
-from models import UserPermissionModel
+from backend.database import SessionLocal, init_db, get_db
+from backend.models import UserPermissionModel
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import json

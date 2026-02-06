@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
+from backend.models import Base
+
 
 # Replace with your actual PostgreSQL credentials
 # Format: postgresql://user:password@localhost:port/db_name
