@@ -1,5 +1,5 @@
 // API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://access-guardian.onrender.com';
 
 // Check if backend is available
 export const checkBackendHealth = async () => {
@@ -16,7 +16,7 @@ export const checkBackendHealth = async () => {
 
 export const adminLogin = async (adminId, password) => {
   try {
-    const response = await fetch('http://localhost:8000/api/admin/login', {
+    const response = await fetch('https://access-guardian.onrender.com/api/admin/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ export const adminLogin = async (adminId, password) => {
 
 export const validateToken = async (token) => {
   try {
-    const response = await fetch(`http://localhost:8000/api/admin/validate?token=${token}`);
+    const response = await fetch(`https://access-guardian.onrender.com/api/admin/validate?token=${token}`);
     if (response.ok) {
       return await response.json();
     }
@@ -51,7 +51,7 @@ export const validateToken = async (token) => {
 
 export const requestAccess = async (name, email, reason) => {
   try {
-    const response = await fetch('http://localhost:8000/api/request-access', {
+    const response = await fetch('https://access-guardian.onrender.com/api/request-access', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

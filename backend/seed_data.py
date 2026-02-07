@@ -4,7 +4,7 @@ import random
 # The URL of your running FastAPI server
 # Try localhost if 127.0.0.1 failed
 # Change this line:
-API_URL = "http://localhost:8000/update-role"
+API_URL = "https://access-guardian.onrender.com/update-role"
 
 # Sample roles and their specific permissions
 ROLES = {

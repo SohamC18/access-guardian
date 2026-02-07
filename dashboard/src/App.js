@@ -142,7 +142,7 @@ const AuthPage = ({ onLogin }) => {
       console.log('Attempting login with:', adminId);
       
       // Try to connect to FastAPI backend
-      const response = await fetch('http://localhost:8000/api/admin/login', {
+      const response = await fetch('https://access-guardian.onrender.com/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -209,7 +209,7 @@ const AuthPage = ({ onLogin }) => {
     
     // Send request access data to backend
     try {
-      const response = await fetch('http://localhost:8000/api/request-access', {
+      const response = await fetch('https://access-guardian.onrender.com/api/request-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -739,7 +739,7 @@ ${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendatio
       
       setChanging(true);
       try {
-        const response = await fetch('http://localhost:8000/update-role', {
+        const response = await fetch('https://access-guardian.onrender.com/update-role', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -769,7 +769,7 @@ ${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendatio
         
       } catch (error) {
         console.error('Role change error:', error);
-        alert(`Error: ${error.message}\n\nMake sure backend is running at http://localhost:8000`);
+        alert(`Error: ${error.message}\n\nMake sure backend is running at https://access-guardian.onrender.com`);
       } finally {
         setChanging(false);
       }
@@ -1064,7 +1064,7 @@ ${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendatio
                   } else {
                     // For live mode, try to generate anomalies if none exist
                     if (anomalies.length === 0) {
-                      fetch('http://localhost:8000/api/force-anomalies-demo', {
+                      fetch('https://access-guardian.onrender.com/api/force-anomalies-demo', {
                         method: 'POST'
                       })
                       .then(res => res.json())
@@ -1298,7 +1298,7 @@ function App() {
       
       // Try to validate with backend
       try {
-        const response = await fetch(`http://localhost:8000/api/admin/validate?token=${token}`);
+        const response = await fetch(`https://access-guardian.onrender.com/api/admin/validate?token=${token}`);
         
         if (response.ok) {
           const data = await response.json();
