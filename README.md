@@ -1,10 +1,8 @@
 # Access_Guardian - README.txt
 
-===============================================================================
                               ACCESS_GUARDIAN
                  AI-Powered Privilege Creep Detection System
                                 Team Obsidian
-===============================================================================
 
 📌 LIVE DEMO:
 Frontend: https://access-guardian.vercel.app
@@ -17,9 +15,7 @@ API Docs: https://access-guardian-backend.onrender.com/docs
 Admin:    admin / admin123
 Team:     obsidian / hackathon2024
 
-===============================================================================
                               PROBLEM STATEMENT
-===============================================================================
 
 PRIVILEGE CREEP:Privilege Creep Causing Unintended Access in Role-Based Web Systems
 
@@ -27,10 +23,7 @@ Real Impact:
 - 78% organizations face security breaches from excessive permissions
 - Average employee has 40% more permissions than needed
 - Current solutions: Manual audits (slow) or periodic reviews (gaps)
-
-===============================================================================
                               OUR SOLUTION
-===============================================================================
 
 Access_Guardian provides:
 1. REAL-TIME AI DETECTION - Continuous permission monitoring
@@ -38,9 +31,7 @@ Access_Guardian provides:
 3. INSTANT REMEDIATION - One-click permission cleanup
 4. COMPLIANCE ASSURANCE - Always audit-ready
 
-===============================================================================
                           COMPLETE WORKFLOW
-===============================================================================
 
 1️⃣ AUTHENTICATION
    Landing Page → Auth Portal → Login → Secure Dashboard
@@ -57,9 +48,7 @@ Access_Guardian provides:
 5️⃣ REPORTING
    Generate compliance reports → Export audit trails → Schedule reviews
 
-===============================================================================
                               AI/ML APPROACH
-===============================================================================
 
 ALGORITHM: Isolation Forest (Unsupervised Anomaly Detection)
 
@@ -81,9 +70,7 @@ RISK CLASSIFICATION:
 60-79  : High      (Immediate review)
 80-100 : Critical  (Immediate remediation)
 
-===============================================================================
                           COMPETITIVE ADVANTAGES
-===============================================================================
 
 🔹 END-TO-END SOLUTION
    Detection → Visualization → Remediation → Reporting
@@ -101,10 +88,9 @@ RISK CLASSIFICATION:
    Full-stack: React + FastAPI + PostgreSQL
    Containerized with Docker
    Scalable microservices
-
-===============================================================================
+   
                               KEY FEATURES
-===============================================================================
+
 
 📊 REAL-TIME DASHBOARD
    - 4 Key metrics: Users, High-risk, Anomalies, Compliance
@@ -131,18 +117,16 @@ RISK CLASSIFICATION:
    - Role-based access control
    - Complete audit trails
 
-===============================================================================
                           PERFORMANCE METRICS
-===============================================================================
 
 ✅ Detection Time:      Real-time (vs Monthly audits)
 ✅ Remediation Time:    <60 seconds (vs Days/Weeks)
 ✅ Compliance Reports:  Automated (vs Manual)
 ✅ Scalability:         1000+ users supported
 
-===============================================================================
+
                           TECH STACK
-===============================================================================
+
 
 FRONTEND: React 18, Tailwind CSS, Chart.js, Lucide Icons
 BACKEND:  FastAPI, SQLAlchemy, JWT Authentication
@@ -150,9 +134,9 @@ AI/ML:    Scikit-learn, Pandas, Isolation Forest
 DATABASE:SQLite (dev)
 DEPLOYMENT: Vercel (frontend), Render (backend), Docker
 
-===============================================================================
+
                           API ENDPOINTS
-===============================================================================
+
 
 🔐 AUTHENTICATION
    POST   /api/admin/login
@@ -178,9 +162,7 @@ DEPLOYMENT: Vercel (frontend), Render (backend), Docker
    POST   /api/reports/compliance
    GET    /api/anomalies/all
 
-===============================================================================
                           INSTALLATION
-===============================================================================
 
 QUICK LOCAL SETUP:
 
@@ -203,9 +185,8 @@ QUICK LOCAL SETUP:
 
 ACCESS: http://localhost:3000
 
-===============================================================================
                               DEPLOYMENT
-===============================================================================
+
 
 ONE-COMMAND DOCKER:
    docker-compose up --build
@@ -215,16 +196,14 @@ PRODUCTION DEPLOYMENT:
 2. Frontend: Vercel.com (Free tier)
 3. Database: PostgreSQL (Render) / SQLite
 
-===============================================================================
                               TEAM OBSIDIAN
-===============================================================================
+
 
 👤 Atharv Devikar - Team Lead 
 👤 Soham Chutke
 👤 Vedant Kale
-===============================================================================
+
                               IMPACT & RESULTS
-===============================================================================
 
 ✅ 90% Accuracy in privilege creep detection
 ✅ 75% Faster remediation vs manual processes
@@ -232,7 +211,6 @@ PRODUCTION DEPLOYMENT:
 ✅ Enterprise scalability proven
 ✅ Hackathon-ready in 48 hours
 
-===============================================================================
 
 💡 Access_Guardian transforms privilege creep from a silent threat into
    a managed risk, maintaining least-privilege access in dynamic organizations.
@@ -240,4 +218,3 @@ PRODUCTION DEPLOYMENT:
 🔗 GitHub: github.com/SohamC18/access-guardian
 📧 Contact: Team Obsidian | Hackathon Project
 
-===============================================================================
