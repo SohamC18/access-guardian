@@ -11,6 +11,74 @@ export const checkBackendHealth = async () => {
   }
 };
 
+
+// Add these authentication functions to your api.js file
+
+export const adminLogin = async (adminId, password) => {
+  try {
+    const response = await fetch('http://localhost:8000/api/admin/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ adminId, password }),
+    });
+    
+    if (response.ok) {
+      return await response.json();
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Login failed');
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
+};
+
+export const validateToken = async (token) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/admin/validate?token=${token}`);
+    if (response.ok) {
+      return await response.json();
+    }
+    return { valid: false };
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return { valid: false };
+  }
+};
+
+export const requestAccess = async (name, email, reason) => {
+  try {
+    const response = await fetch('http://localhost:8000/api/request-access', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, email, reason }),
+    });
+    
+    if (response.ok) {
+      return await response.json();
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Request failed');
+    }
+  } catch (error) {
+    console.error('Request access error:', error);
+    throw error;
+  }
+};
+
+// Export all functions together
+export default {
+  // Your existing exports...
+  adminLogin,
+  validateToken,
+  requestAccess,
+};
+
 // Generic fetch wrapper
 const apiClient = {
   get: async (endpoint) => {

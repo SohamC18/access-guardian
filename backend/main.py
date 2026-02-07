@@ -13,6 +13,13 @@ from sklearn.ensemble import IsolationForest
 import io
 import csv
 import random
+# Add these imports
+import secrets
+from typing import Optional
+from datetime import datetime, timedelta
+import sqlite3
+import hashlib
+import uuid
 
 # Initialize the database tables on start
 init_db()
@@ -117,6 +124,28 @@ class FilterCriteria(BaseModel):
 class ReportType(BaseModel):
     type: str = "monthly"
 
+# Add these Pydantic models for authentication
+class AdminLoginRequest(BaseModel):
+    adminId: str
+    password: str
+
+class AccessRequest(BaseModel):
+    name: str
+    email: str
+    reason: Optional[str] = None
+
+class TokenResponse(BaseModel):
+    success: bool
+    token: Optional[str] = None
+    user: Optional[dict] = None
+    error: Optional[str] = None
+
+class AccessRequestResponse(BaseModel):
+    success: bool
+    message: str
+    request_id: Optional[str] = None
+    timestamp: str
+    error: Optional[str] = None
 # =============== EXISTING FRONTEND ENDPOINTS ===============
 @app.get("/api/users", response_model=List[UserResponse])
 def get_users_for_frontend(db: Session = Depends(get_db)):
@@ -263,6 +292,274 @@ def trigger_risk_calculation(db: Session = Depends(get_db)):
     risk_data = calculate_risk_scores(db, update_db=True)
     return {"message": "Risk scores updated", "users_processed": len(risk_data)}
 
+
+# =============== AUTHENTICATION ENDPOINTS ===============
+
+# In-memory token storage for simplicity (use database in production)
+ADMIN_TOKENS = {}
+
+# Hardcoded admin credentials for demo
+VALID_ADMINS = {
+    "admin": "admin123",
+    "obsidian": "hackathon2024",
+    "superadmin": "accessguardian"
+}
+
+@app.post("/api/admin/login", response_model=TokenResponse)
+async def admin_login(login_data: AdminLoginRequest):
+    """Admin login endpoint"""
+    try:
+        admin_id = login_data.adminId.strip()
+        password = login_data.password.strip()
+        
+        # Check credentials
+        if admin_id in VALID_ADMINS and password == VALID_ADMINS[admin_id]:
+            # Generate token
+            token = f"obsidian_{datetime.now().strftime('%Y%m%d%H%M%S')}_{admin_id}"
+            
+            # Store token (in production, store in database)
+            ADMIN_TOKENS[token] = {
+                "admin_id": admin_id,
+                "created_at": datetime.now(),
+                "expires_at": datetime.now() + timedelta(hours=24)
+            }
+            
+            return TokenResponse(
+                success=True,
+                token=token,
+                user={
+                    "id": admin_id,
+                    "name": "System Administrator",
+                    "role": "admin",
+                    "team": "Obsidian"
+                }
+            )
+        else:
+            return TokenResponse(
+                success=False,
+                error="Invalid credentials"
+            )
+            
+    except Exception as e:
+        print(f"Login error: {e}")
+        return TokenResponse(
+            success=False,
+            error="Login failed"
+        )
+
+@app.post("/api/request-access", response_model=AccessRequestResponse)
+async def request_access(request_data: AccessRequest, db: Session = Depends(get_db)):
+    """Submit access request"""
+    try:
+        if not request_data.name or not request_data.email:
+            return AccessRequestResponse(
+                success=False,
+                message="Missing required fields",
+                timestamp=datetime.now().isoformat(),
+                error="Name and email are required"
+            )
+        
+        # Log the request
+        print(f"🔔 New Access Request:")
+        print(f"   Name: {request_data.name}")
+        print(f"   Email: {request_data.email}")
+        print(f"   Reason: {request_data.reason or 'Not provided'}")
+        print(f"   Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("   " + "="*50)
+        
+        # Save to SQLite database
+        try:
+            conn = sqlite3.connect('obsidian.db')
+            cursor = conn.cursor()
+            
+            # Create table if not exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS access_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    reason TEXT,
+                    status TEXT DEFAULT 'pending',
+                    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    reviewed_at TIMESTAMP
+                )
+            ''')
+            
+            # Insert request
+            cursor.execute('''
+                INSERT INTO access_requests (name, email, reason)
+                VALUES (?, ?, ?)
+            ''', (request_data.name, request_data.email, request_data.reason or ""))
+            
+            conn.commit()
+            request_id = cursor.lastrowid
+            conn.close()
+            
+        except Exception as db_error:
+            print(f"Database error: {db_error}")
+            request_id = None
+        
+        return AccessRequestResponse(
+            success=True,
+            message="Access request submitted successfully. An admin will review your request.",
+            request_id=str(request_id) if request_id else f"REQ-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except Exception as e:
+        print(f"Request access error: {e}")
+        return AccessRequestResponse(
+            success=False,
+            message="Failed to submit request",
+            timestamp=datetime.now().isoformat(),
+            error=str(e)
+        )
+
+@app.get("/api/admin/validate")
+async def validate_admin(token: str = None):
+    """Validate admin token"""
+    try:
+        if not token:
+            return {"valid": False, "message": "No token provided"}
+        
+        # Check if token exists and is not expired
+        if token in ADMIN_TOKENS:
+            token_data = ADMIN_TOKENS[token]
+            if datetime.now() < token_data["expires_at"]:
+                return {
+                    "valid": True,
+                    "message": "Token is valid",
+                    "user": {
+                        "id": token_data["admin_id"],
+                        "name": "System Administrator",
+                        "role": "admin"
+                    }
+                }
+            else:
+                # Remove expired token
+                del ADMIN_TOKENS[token]
+        
+        return {"valid": False, "message": "Invalid or expired token"}
+        
+    except Exception as e:
+        print(f"Validation error: {e}")
+        return {"valid": False, "message": "Validation failed"}
+
+@app.get("/api/admin/access-requests")
+async def get_access_requests(token: str = None, db: Session = Depends(get_db)):
+    """Get all access requests (admin only)"""
+    try:
+        # Simple token validation
+        if not token or token not in ADMIN_TOKENS:
+            return {
+                "success": False,
+                "error": "Unauthorized"
+            }
+        
+        # Check token expiration
+        token_data = ADMIN_TOKENS.get(token)
+        if datetime.now() >= token_data["expires_at"]:
+            del ADMIN_TOKENS[token]
+            return {
+                "success": False,
+                "error": "Token expired"
+            }
+        
+        # Fetch from SQLite
+        conn = sqlite3.connect('obsidian.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, name, email, reason, status, 
+                   submitted_at FROM access_requests 
+            ORDER BY submitted_at DESC
+        ''')
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        requests = []
+        for row in rows:
+            requests.append({
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+                "reason": row[3],
+                "status": row[4],
+                "submitted_at": row[5]
+            })
+        
+        return {
+            "success": True,
+            "requests": requests,
+            "count": len(requests)
+        }
+        
+    except Exception as e:
+        print(f"Error fetching access requests: {e}")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
+
+@app.put("/api/admin/access-requests/{request_id}")
+async def update_access_request(request_id: int, status: str = "approved", token: str = None):
+    """Update access request status"""
+    try:
+        # Simple token validation
+        if not token or token not in ADMIN_TOKENS:
+            return {
+                "success": False,
+                "error": "Unauthorized"
+            }
+        
+        # Check token expiration
+        token_data = ADMIN_TOKENS.get(token)
+        if datetime.now() >= token_data["expires_at"]:
+            del ADMIN_TOKENS[token]
+            return {
+                "success": False,
+                "error": "Token expired"
+            }
+        
+        if status not in ['approved', 'rejected', 'pending']:
+            return {
+                "success": False,
+                "error": "Invalid status"
+            }
+        
+        # Update in SQLite
+        conn = sqlite3.connect('obsidian.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE access_requests 
+            SET status = ?, reviewed_at = datetime('now')
+            WHERE id = ?
+        ''', (status, request_id))
+        
+        conn.commit()
+        updated = cursor.rowcount > 0
+        conn.close()
+        
+        if updated:
+            return {
+                "success": True,
+                "message": f"Request {request_id} updated to {status}"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Request not found"
+            }
+            
+    except Exception as e:
+        print(f"Error updating access request: {e}")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
+    
 # =============== NEW ENDPOINTS FOR BUTTON CONNECTIVITY ===============
 @app.post("/api/users/filter", response_model=List[UserResponse])
 def filter_users(criteria: FilterCriteria, db: Session = Depends(get_db)):

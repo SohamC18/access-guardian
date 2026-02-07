@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, ShieldAlert, Activity, FileText, Bell, Shield, RefreshCw, X, AlertCircle } from 'lucide-react';
+import { Users, ShieldAlert, Activity, FileText, Bell, Shield, RefreshCw, X, AlertCircle, Lock, User } from 'lucide-react';
 import UserTable from './components/UserTable';
 import AnomaliesList from './components/AnomaliesList';
 import PermissionChart from './components/Charts';
@@ -7,7 +7,574 @@ import QuickActions from './components/QuickActions';
 import ComplianceReport from './components/ComplianceReport';
 import { api, checkBackendHealth } from './services/api';
 
-function App() {
+// Landing Page Component
+const LandingPage = ({ onEnter }) => {
+  const [fadeOut, setFadeOut] = useState(false);
+
+  const handleEnter = () => {
+    setFadeOut(true);
+    setTimeout(() => {
+      onEnter();
+    }, 800);
+  };
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+        handleEnter();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  return (
+    <div 
+      className={`landing-container ${fadeOut ? 'fade-out' : ''}`}
+      onClick={handleEnter}
+      style={{ 
+        cursor: 'pointer',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'opacity 0.8s ease',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 20% 30%, rgba(120, 119, 198, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(255, 119, 198, 0.1) 0%, transparent 50%)'
+      }}></div>
+      
+      <div style={{
+        textAlign: 'center',
+        zIndex: 1,
+        padding: '2rem',
+        maxWidth: '800px'
+      }}>
+        <div style={{ marginBottom: '4rem' }}>
+          <h2 style={{
+            fontSize: '1.8rem',
+            color: '#8a8aff',
+            marginBottom: '1.5rem',
+            fontWeight: 300,
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            opacity: 0.9
+          }}>
+            Team Obsidian presents
+          </h2>
+          <h1 style={{
+            fontSize: '5rem',
+            background: 'linear-gradient(45deg, #8a8aff, #ff7ac6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            margin: '1rem 0',
+            fontWeight: 700,
+            letterSpacing: '1px',
+            textShadow: '0 0 30px rgba(138, 138, 255, 0.3)'
+          }}>
+            Access_Guardian
+          </h1>
+          <p style={{
+            fontSize: '1.5rem',
+            color: '#b8b8ff',
+            marginTop: '1rem',
+            fontWeight: 300,
+            letterSpacing: '1px'
+          }}>
+            We protect, so that you don't have to
+          </p>
+        </div>
+        
+        <div style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <p style={{
+            color: '#888',
+            fontSize: '1.1rem',
+            letterSpacing: '1px',
+            animation: 'pulse 2s infinite'
+          }}>
+            Click anywhere or press any key to continue...
+          </p>
+        </div>
+        
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+          .fade-out {
+            opacity: 0;
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+};
+
+// Auth Page Component
+const AuthPage = ({ onLogin }) => {
+  const [isAdminLogin, setIsAdminLogin] = useState(true);
+  const [adminId, setAdminId] = useState('');
+  const [password, setPassword] = useState('');
+  const [requestData, setRequestData] = useState({
+    name: '',
+    email: '',
+    reason: ''
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    try {
+      console.log('Attempting login with:', adminId);
+      
+      // Try to connect to FastAPI backend
+      const response = await fetch('http://localhost:8000/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminId: adminId,
+          password: password
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Login response:', data);
+        
+        if (data.success) {
+          // Store the token and user info
+          localStorage.setItem('adminToken', data.token);
+          localStorage.setItem('adminUser', JSON.stringify(data.user));
+          onLogin();
+        } else {
+          setError(data.error || 'Invalid credentials');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.log('Login failed:', errorData);
+        
+        // Fallback to hardcoded credentials if backend is down
+        if (adminId === 'admin' && password === 'admin123') {
+          console.log('Using fallback credentials');
+          localStorage.setItem('adminToken', 'demo_fallback_token');
+          localStorage.setItem('adminUser', JSON.stringify({
+            id: adminId,
+            name: 'System Administrator',
+            role: 'admin',
+            team: 'Obsidian'
+          }));
+          onLogin();
+        } else {
+          setError(errorData.error || 'Invalid credentials. Try admin/admin123');
+        }
+      }
+    } catch (err) {
+      console.error('Login network error:', err);
+      // Fallback to hardcoded credentials
+      if (adminId === 'admin' && password === 'admin123') {
+        localStorage.setItem('adminToken', 'demo_fallback_token');
+        localStorage.setItem('adminUser', JSON.stringify({
+          id: adminId,
+          name: 'System Administrator',
+          role: 'admin',
+          team: 'Obsidian'
+        }));
+        onLogin();
+      } else {
+        setError('Backend unreachable. Using demo credentials: admin/admin123');
+      }
+    }
+  };
+
+  const handleRequestAccess = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    
+    // Send request access data to backend
+    try {
+      const response = await fetch('http://localhost:8000/api/request-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSuccess(data.message || 'Access request submitted successfully!');
+        setRequestData({ name: '', email: '', reason: '' });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to submit request');
+      }
+    } catch (err) {
+      console.error('Request access error:', err);
+      // For demo purposes, show success even if backend fails
+      setSuccess('Access request submitted successfully! You will be notified once approved.');
+      setRequestData({ name: '', email: '', reason: '' });
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      color: 'white'
+    }}>
+      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+        <h1 style={{
+          fontSize: '3.5rem',
+          background: 'linear-gradient(45deg, #8a8aff, #ff7ac6)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          marginBottom: '0.5rem'
+        }}>
+          Access_Guardian
+        </h1>
+        <p style={{ color: '#b8b8ff', fontSize: '1.2rem', letterSpacing: '1px' }}>
+          Secure Access Management System
+        </p>
+      </div>
+      
+      <div style={{
+        display: 'flex',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '10px',
+        padding: '5px',
+        marginBottom: '2rem'
+      }}>
+        <button 
+          onClick={() => setIsAdminLogin(true)}
+          style={{
+            padding: '1rem 2rem',
+            border: 'none',
+            background: isAdminLogin ? 'rgba(138, 138, 255, 0.2)' : 'transparent',
+            color: isAdminLogin ? '#8a8aff' : '#aaa',
+            fontSize: '1.1rem',
+            cursor: 'pointer',
+            borderRadius: '8px',
+            transition: 'all 0.3s ease',
+            flex: 1,
+            fontWeight: isAdminLogin ? 600 : 400
+          }}
+        >
+          Admin Login
+        </button>
+        <button 
+          onClick={() => setIsAdminLogin(false)}
+          style={{
+            padding: '1rem 2rem',
+            border: 'none',
+            background: !isAdminLogin ? 'rgba(138, 138, 255, 0.2)' : 'transparent',
+            color: !isAdminLogin ? '#8a8aff' : '#aaa',
+            fontSize: '1.1rem',
+            cursor: 'pointer',
+            borderRadius: '8px',
+            transition: 'all 0.3s ease',
+            flex: 1,
+            fontWeight: !isAdminLogin ? 600 : 400
+          }}
+        >
+          Request Access
+        </button>
+      </div>
+      
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '15px',
+        padding: '2.5rem',
+        width: '100%',
+        maxWidth: '450px',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        {isAdminLogin ? (
+          <form onSubmit={handleAdminLogin} style={{ width: '100%' }}>
+            <h2 style={{ color: '#fff', marginBottom: '2rem', textAlign: 'center', fontSize: '1.8rem' }}>
+              Admin Authentication
+            </h2>
+            {error && (
+              <div style={{
+                background: 'rgba(255, 87, 87, 0.1)',
+                color: '#ff5757',
+                padding: '0.8rem',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                textAlign: 'center',
+                border: '1px solid rgba(255, 87, 87, 0.2)'
+              }}>
+                {error}
+              </div>
+            )}
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="adminId" style={{
+                display: 'block',
+                color: '#b8b8ff',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                Admin ID
+              </label>
+              <input
+                type="text"
+                id="adminId"
+                value={adminId}
+                onChange={(e) => setAdminId(e.target.value)}
+                placeholder="Enter admin ID"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.8rem 1rem',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="password" style={{
+                display: 'block',
+                color: '#b8b8ff',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.8rem 1rem',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: 'linear-gradient(45deg, #8a8aff, #ff7ac6)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                marginTop: '1rem'
+              }}
+            >
+              Login as Admin
+            </button>
+            
+            <div style={{ marginTop: '1rem', textAlign: 'center', color: '#888', fontSize: '0.9rem' }}>
+              <p>Demo credentials: admin / admin123</p>
+              <p>Alternative: obsidian / hackathon2024</p>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleRequestAccess} style={{ width: '100%' }}>
+            <h2 style={{ color: '#fff', marginBottom: '2rem', textAlign: 'center', fontSize: '1.8rem' }}>
+              Request Access
+            </h2>
+            {error && (
+              <div style={{
+                background: 'rgba(255, 87, 87, 0.1)',
+                color: '#ff5757',
+                padding: '0.8rem',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                textAlign: 'center',
+                border: '1px solid rgba(255, 87, 87, 0.2)'
+              }}>
+                {error}
+              </div>
+            )}
+            {success && (
+              <div style={{
+                background: 'rgba(87, 255, 87, 0.1)',
+                color: '#57ff57',
+                padding: '0.8rem',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                textAlign: 'center',
+                border: '1px solid rgba(87, 255, 87, 0.2)'
+              }}>
+                {success}
+              </div>
+            )}
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="name" style={{
+                display: 'block',
+                color: '#b8b8ff',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={requestData.name}
+                onChange={(e) => setRequestData({...requestData, name: e.target.value})}
+                placeholder="Enter your full name"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.8rem 1rem',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="email" style={{
+                display: 'block',
+                color: '#b8b8ff',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={requestData.email}
+                onChange={(e) => setRequestData({...requestData, email: e.target.value})}
+                placeholder="Enter your email"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.8rem 1rem',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="reason" style={{
+                display: 'block',
+                color: '#b8b8ff',
+                marginBottom: '0.5rem',
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                Reason for Access
+              </label>
+              <textarea
+                id="reason"
+                value={requestData.reason}
+                onChange={(e) => setRequestData({...requestData, reason: e.target.value})}
+                placeholder="Please describe why you need access"
+                rows="4"
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.8rem 1rem',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease',
+                  resize: 'vertical',
+                  minHeight: '100px'
+                }}
+              />
+            </div>
+            
+            <button 
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: 'linear-gradient(45deg, #8a8aff, #ff7ac6)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                marginTop: '1rem'
+              }}
+            >
+              Submit Request
+            </button>
+          </form>
+        )}
+      </div>
+      
+      <div style={{ marginTop: '3rem', textAlign: 'center', color: '#666', fontSize: '0.9rem' }}>
+        <p>Team Obsidian • Hackathon Project</p>
+      </div>
+    </div>
+  );
+};
+
+// Dashboard Component (Your existing App)
+const Dashboard = ({ onLogout }) => {
   const [demoMode, setDemoMode] = useState(true);
   const [backendConnected, setBackendConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -354,17 +921,26 @@ ${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendatio
                     </div>
                   </label>
                 </div>
+                
+                {/* Logout Button */}
+                <button 
+                  onClick={onLogout}
+                  className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm ml-2"
+                >
+                  <Lock className="h-4 w-4 mr-1" />
+                  Logout
+                </button>
               </div>
               
               <Bell className="h-5 w-5 text-gray-500 cursor-pointer hover:text-blue-600" />
               
               <div className="flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium">Atharv Devikar</p>
-                  <p className="text-xs text-gray-500">Team Lead</p>
+                  <p className="text-sm font-medium">Admin User</p>
+                  <p className="text-xs text-gray-500">System Administrator</p>
                 </div>
                 <div className="h-10 w-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  AD
+                  <User className="h-5 w-5" />
                 </div>
               </div>
             </div>
@@ -694,6 +1270,124 @@ ${result.recommendations.length > 0 ? `\nRecommendations: ${result.recommendatio
       </div>
     </div>
   );
+};
+
+// Main App Component with Authentication
+function App() {
+  const [currentPage, setCurrentPage] = useState('landing');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Check for existing session on component mount
+  useEffect(() => {
+    const validateSession = async () => {
+      const token = localStorage.getItem('adminToken');
+      
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      
+      // If using demo token, just accept it
+      if (token === 'demo_fallback_token' || token.startsWith('demo_')) {
+        setIsAuthenticated(true);
+        setCurrentPage('dashboard');
+        setLoading(false);
+        return;
+      }
+      
+      // Try to validate with backend
+      try {
+        const response = await fetch(`http://localhost:8000/api/admin/validate?token=${token}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.valid) {
+            setIsAuthenticated(true);
+            setCurrentPage('dashboard');
+          } else {
+            // Token invalid, clear it
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+          }
+        }
+      } catch (error) {
+        console.log('Backend validation failed, using local token');
+        // If backend is down but we have a token, still allow access
+        if (token.includes('obsidian_token')) {
+          setIsAuthenticated(true);
+          setCurrentPage('dashboard');
+        }
+      }
+      
+      setLoading(false);
+    };
+    
+    validateSession();
+  }, []);
+
+  const handleLandingComplete = () => {
+    setCurrentPage('auth');
+  };
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setCurrentPage('dashboard');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    setIsAuthenticated(false);
+    setCurrentPage('landing');
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '3px solid #8a8aff',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 20px'
+          }}></div>
+          <p>Loading Access_Guardian...</p>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // Render based on current page
+  switch (currentPage) {
+    case 'landing':
+      return <LandingPage onEnter={handleLandingComplete} />;
+    
+    case 'auth':
+      return <AuthPage onLogin={handleLogin} />;
+    
+    case 'dashboard':
+      return <Dashboard onLogout={handleLogout} />;
+    
+    default:
+      return <LandingPage onEnter={handleLandingComplete} />;
+  }
 }
 
 export default App;

@@ -10,3 +10,277 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+/* Landing Page Styles */
+.landing-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 119, 198, 0.1) 0%, transparent 50%);
+}
+
+.landing-content {
+  text-align: center;
+  z-index: 1;
+  padding: 2rem;
+  max-width: 800px;
+}
+
+.team-presentation {
+  margin-bottom: 4rem;
+}
+
+.team-tagline {
+  font-size: 1.8rem;
+  color: #8a8aff;
+  margin-bottom: 1.5rem;
+  font-weight: 300;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.project-title {
+  font-size: 5rem;
+  background: linear-gradient(45deg, #8a8aff, #ff7ac6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 1rem 0;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 0 0 30px rgba(138, 138, 255, 0.3);
+}
+
+.project-tagline {
+  font-size: 1.5rem;
+  color: #b8b8ff;
+  margin-top: 1rem;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.instructions {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.click-instruction {
+  color: #888;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  animation: pulse 2s infinite;
+}
+
+.hackathon-info {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.fade-out {
+  opacity: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Auth Page Styles */
+.auth-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: white;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.auth-header h1 {
+  font-size: 3.5rem;
+  background: linear-gradient(45deg, #8a8aff, #ff7ac6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.tagline {
+  color: #b8b8ff;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.auth-switcher {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 5px;
+  margin-bottom: 2rem;
+}
+
+.auth-tab {
+  padding: 1rem 2rem;
+  border: none;
+  background: transparent;
+  color: #aaa;
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.auth-tab.active {
+  background: rgba(138, 138, 255, 0.2);
+  color: #8a8aff;
+  font-weight: 600;
+}
+
+.auth-form-container {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 450px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.auth-form {
+  width: 100%;
+}
+
+.auth-form h2 {
+  color: #fff;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: 1.8rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  color: #b8b8ff;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #8a8aff;
+  box-shadow: 0 0 0 2px rgba(138, 138, 255, 0.2);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.login-btn,
+.request-btn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(45deg, #8a8aff, #ff7ac6);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.login-btn:hover,
+.request-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(138, 138, 255, 0.3);
+}
+
+.error-message {
+  background: rgba(255, 87, 87, 0.1);
+  color: #ff5757;
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border: 1px solid rgba(255, 87, 87, 0.2);
+}
+
+.auth-footer {
+  margin-top: 3rem;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .project-title {
+    font-size: 3.5rem;
+  }
+  
+  .team-tagline {
+    font-size: 1.5rem;
+  }
+  
+  .auth-header h1 {
+    font-size: 2.5rem;
+  }
+  
+  .auth-form-container {
+    padding: 1.5rem;
+  }
+}
+
+/* Add to existing App.css if needed */
+.App {
+  min-height: 100vh;
+}
