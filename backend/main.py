@@ -34,6 +34,13 @@ class RoleChange(BaseModel):
     new_role: str
     new_permissions: List[str]
 
+# Add this new Pydantic model near your other classes
+class BulkRemediation(BaseModel):
+    username: str
+    action: str
+    permissions: Optional[List[str]] = []  # Allows empty list or null
+    justification: Optional[str] = ""      # Prevents null errors
+
 @app.post("/update-role")
 def update_role(data: RoleChange, db: Session = Depends(get_db)):
     # 1. Look for existing user in Postgres
@@ -74,19 +81,6 @@ class RemediationRequest(BaseModel):
     username: str
     permission_to_remove: str
 
-@app.post("/remediate")
-def remediate_access(data: RemediationRequest, db: Session = Depends(get_db)):
-    user = db.query(UserPermissionModel).filter(UserPermissionModel.username == data.username).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Remove the specific 'creepy' permission
-    if data.permission_to_remove in user.accumulated_permissions:
-        user.accumulated_permissions.remove(data.permission_to_remove)
-        db.commit()
-        return {"message": f"Successfully revoked {data.permission_to_remove} from {data.username}"}
-    
-    return {"message": "Permission not found in user's list"}
 
 # =============== NEW ENDPOINTS FOR FRONTEND ===============
 class UserResponse(BaseModel):
@@ -777,3 +771,33 @@ def calculate_risk_scores(db: Session, update_db=False):
         # Return default scores if AI fails
         return {user.id: {"risk_score": 0, "status": "✅ SAFE", "reason": "AI Error"} 
                 for user in users}
+
+
+
+# Add this endpoint to handle the frontend buttons
+@app.post("/api/remediate-bulk")
+def handle_bulk_remediation(data: BulkRemediation, db: Session = Depends(get_db)):
+    user = db.query(UserPermissionModel).filter(UserPermissionModel.username == data.username).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Perform the cleanup logic
+    if data.action == "remove_all":
+        user.accumulated_permissions = [] 
+    elif data.action == "review":
+        user.accumulated_permissions = [p for p in user.accumulated_permissions if p not in data.permissions]
+
+    db.commit()
+    
+    # CRITICAL: Recalculate and return the exact structure the UI needs
+    risk_data = calculate_risk_scores(db, update_db=True)
+    
+    # This return object MUST match the 'result' your frontend uses in 'onSubmit(result)'
+    # After your db.commit() and risk calculation
+    return {
+        "status": "success",
+        "message": "Privilege creep remediated successfully",
+        "user": user.username,
+        "new_risk_score": user.risk_score
+    }

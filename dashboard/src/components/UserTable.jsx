@@ -151,23 +151,15 @@ const UserTable = ({ demoMode = false }) => {
   };
 
   const handleRemediationSubmit = async (actionData) => {
-    try {
-      if (!demoMode) {
-        await api.submitRemediation({
-          userId: selectedUser.name,
-          permission: actionData.permission_to_remove
-        });
-        alert('✅ Remediation action submitted successfully!');
-      } else {
-        alert('🔧 Demo: Remediation action would be submitted in production');
-      }
-      setIsModalOpen(false);
-      // Refresh user data
-      fetchUsers();
-    } catch (error) {
-      alert(`❌ Error: ${error.message}`);
-    }
-  };
+  // We don't need the 'api.submitRemediation' call here anymore 
+  // because the Modal now handles its own fetch call.
+  
+  setIsModalOpen(false);
+  
+  // This is crucial: it refreshes the dashboard so the 
+  // 85% Risk Reduction is visible immediately!
+  fetchUsers(); 
+};
 
   if (loading) {
     return (

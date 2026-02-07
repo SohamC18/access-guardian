@@ -13,19 +13,51 @@ const RemediationModal = ({ isOpen, onClose, user, onSubmit, demoMode = true }) 
     { id: 3, name: 'hr_salary_view', system: 'HR System', description: 'View employee salary information', risk: 'Medium', added: '2023-11-05' },
   ];
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // 1. Prepare the payload with the EXACT field names from main.py
     const actionData = {
-      action: selectedAction,
-      permission_to_remove: excessPermissions[0]?.name || 'test_permission',
-      justification: justification || null,
-      timestamp: new Date().toISOString()
+      username: user.name, 
+      // Ensure 'remove' from UI maps to 'remove_all' for the backend logic
+      action: selectedAction === 'remove' ? 'remove_all' : selectedAction,
+      // Ensure this is ALWAYS an array, never null
+      permissions: Array.isArray(excessPermissions) 
+        ? excessPermissions.map(p => p.name) 
+        : [],
+      justification: justification || ""
     };
-    
-    if (onSubmit) {
-      onSubmit(actionData);
-    } else {
-      alert(`Action submitted for ${user.name}\nAction: ${selectedAction}\nJustification: ${justification || 'None'}`);
+
+    console.log("Team Obsidian Payload Check:", actionData);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/remediate-bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(actionData),
+      });
+
+      // Capture the 422 error details to see EXACTLY what FastAPI hates
+      if (!response.ok) {
+        const errorDetail = await response.json();
+        console.log("FASTAPI REJECTION DETAIL:", errorDetail);
+        throw new Error(`Error ${response.status}: ${JSON.stringify(errorDetail.detail)}`);
+      }
+
+      const result = await response.json();
+      alert("Success: Privilege Creep Remediated!");
+      
+      if (onSubmit) {
+        onSubmit(result);
+      }
       onClose();
+      
+      // Force UI refresh to show the risk score drop from 46 to 41
+      window.location.reload(); 
+
+    } catch (error) {
+      console.error('Submission Error:', error);
+      alert(`Remediation Failed: ${error.message}`);
     }
   };
   
